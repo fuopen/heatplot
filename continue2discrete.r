@@ -1,0 +1,53 @@
+require(shape);
+require(KernSmooth);
+plot.pop<-function(data,plot.x,plot.y,plot.key,output.plot,breaks=50){
+	pop<-read.table(data,header=T);
+	pop$partition<-cut(pop[[plot.key]],breaks=breaks);
+	lim.max<-max(c(pop[[plot.x]],pop[[plot.y]]));
+	if(plot.key=='time'){
+		lim.max=0.3;
+	}
+	p.level<-levels(pop[['partition']]);
+	p.level.len<-length(p.level);
+	#col.grad<-shadepalette(p.level.len,'blue','red');
+	#col.grad<-rainbow(p.level.len);
+	col.grad<-colorRampPalette(c('blue','green','yellow','orange','red'))(p.level.len);
+	par(xaxs='i',yaxs='i');
+	output1<-paste(output.plot,'_classify.png',sep='');
+	png(output1);
+	plot(0,0,type='n',xlab=paste('True',plot.x),ylab=paste('Predict',plot.x),main=paste('Prediction of',plot.x),xlim=c(0,lim.max),ylim=c(0,lim.max));#,asp=1);
+	segments(0,0,lim.max,lim.max,lwd=2.3);
+	#by(pop,pop[['partition']],plot.points,palette=col.grad,p.x=plot.x,p.y=plot.y);
+	for(i in 1:p.level.len){
+		subpop<-subset(pop,partition==p.level[i]);
+		if(nrow(subpop)!=0){
+			points(subpop[[plot.x]],subpop[[plot.y]],col=col.grad[i],cex=1.3);
+		}
+	}
+	colorbar.xl<-grconvertX(lim.max*0.03,'user','ndc');
+	colorbar.xr<-grconvertX(lim.max*0.11,'user','ndc');
+	colorbar.yl<-grconvertY(lim.max*0.75,'user','ndc');
+	colorbar.yr<-grconvertY(lim.max*0.9,'user','ndc');
+	image.seq<-as.numeric(gsub('.*,([0-9.e+]*)\\]$','\\1',p.level));
+	par(new=T,plt=c(colorbar.xl,colorbar.xr,colorbar.yl,colorbar.yr));
+	image(y=image.seq,z=matrix(image.seq,nrow=1),col=col.grad,xaxt='n',yaxt='n',ylab=NA);
+	image.tck<-image.seq[c(1,floor((1+p.level.len)/2),p.level.len)];
+	image.lab<-round(image.tck,2);
+	axis(side=4,tck=-0.1,at=image.tck,label=image.lab,las=2,mgp=c(0,0.12,0));
+	mtext(plot.key,side=3,col='darkblue',font=4)
+	dev.off();
+
+	output2<-paste(output.plot,'_distribution.png',sep='')
+	png(output2);
+	if(plot.x=='time'){
+		bw=c(100,100);
+	}
+	if(plot.x=='coef'){
+		bw=c(0.01,0.01);
+	}
+	dens<-bkde2D(cbind(pop[[plot.x]],pop[[plot.y]]),bandwidth=bw);
+	lim.r<-min(max(dens[[1]]),max(dens[[2]]));
+	lim.l<-max(min(dens[[1]]),min(dens[[2]]));
+	filled.contour(dens[[1]],dens[[2]],dens[[3]],xlim=c(lim.l,lim.r),ylim=c(lim.l,lim.r),col=colorRampPalette(c('blue','green','yellow','orange','red'))(22),plot.title=title(main='Merge Density',xlab=paste('True ',plot.x),ylab=paste('Predict',plot.x)),key.title=title(main='Density\nIntensity'));
+	dev.off();
+}
